@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<PackageId>TcpSharp</PackageId>
+		<Authors>Burak Öner</Authors>
+		<Version>1.0.1</Version>
+		<FileVersion>1.0.1</FileVersion>
+		<PackageVersion>1.0.1</PackageVersion>
+		<AssemblyVersion>1.0.1</AssemblyVersion>
+		<Description>Faster TCP Server and Client tools using low-level implementations</Description>
+		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+		<PackageTags>TcpSharp;NanoCode;NanoSocket;Net;TCP;Socket;Client;Server</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<NeutralLanguage>en</NeutralLanguage>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PackageReleaseNotes>
+			Version 1.0.1 - 15 Oct 2022
+		</PackageReleaseNotes>
+		<PackageIcon>TcpSharp.png</PackageIcon>
+		<PackageIconUrl />
+		<PackageProjectUrl>https://github.com/burakoner/TcpSharp</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/burakoner/TcpSharp</RepositoryUrl>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="Icon\TcpSharp.png">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
+	</ItemGroup>
+
+</Project>
