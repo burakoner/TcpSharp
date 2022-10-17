@@ -166,8 +166,8 @@ namespace TcpSharp
         private int _port;
         private bool _nodelay = true;
         private bool _keepAlive = false;
-        private int _keepAliveTime = 60;
-        private int _keepAliveInterval = 60;
+        private int _keepAliveTime = 900;
+        private int _keepAliveInterval = 300;
         private int _keepAliveRetryCount = 5;
         private int _receiveBufferSize = 8192;
         private int _receiveTimeout = 0;

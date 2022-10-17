@@ -12,7 +12,7 @@
 		<FileVersion>1.0.2</FileVersion>
 		<PackageVersion>1.0.2</PackageVersion>
 		<AssemblyVersion>1.0.2</AssemblyVersion>
-		<Description>Faster (6-10 Gpbs) TCP Server and Client tools using low-level implementations.</Description>
+		<Description>Faster TCP Server and Client tools using low-level implementations.</Description>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageTags>TcpSharp;NanoCode;NanoSocket;Net;TCP;Socket;Client;Server</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
