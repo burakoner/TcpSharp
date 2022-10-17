@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -48,7 +49,7 @@ namespace TcpSharp
             this._cancellationTokenSource.Cancel();
         }
 
-        internal async Task ConnectionHandler()
+        private async Task ConnectionHandler()
         {
             var stream = this.Client.GetStream();
             var buffer = new byte[this.Client.ReceiveBufferSize];
@@ -56,32 +57,32 @@ namespace TcpSharp
             try
             {
 #endif
-                var bytesCount = 0;
-                while ((bytesCount = await stream.ReadAsync(buffer, 0, buffer.Length, this._cancellationToken)) != 0)
-                {
-                    // Increase BytesReceived
-                    BytesReceived += bytesCount;
-                    _server.BytesReceived += bytesCount;
+            var bytesCount = 0;
+            while ((bytesCount = await stream.ReadAsync(buffer, 0, buffer.Length, this._cancellationToken)) != 0)
+            {
+                // Increase BytesReceived
+                BytesReceived += bytesCount;
+                this._server.AddReceivedBytes(bytesCount);
 
-                    // Invoke OnDataReceived
-                    if (this.AcceptData)
+                // Invoke OnDataReceived
+                if (this.AcceptData)
+                {
+                    var bytesReceived = new byte[bytesCount];
+                    Array.Copy(buffer, bytesReceived, bytesCount);
+                    this._server.InvokeOnDataReceived(new OnDataReceivedEventArgs
                     {
-                        var bytesReceived = new byte[bytesCount];
-                        Array.Copy(buffer, bytesReceived, bytesCount);
-                        _server.InvokeOnDataReceived(new OnDataReceivedEventArgs
-                        {
-                            Client = this.Client,
-                            ConnectionId = this.ConnectionId,
-                            Data = bytesReceived
-                        });
-                    }
+                        Client = this.Client,
+                        ConnectionId = this.ConnectionId,
+                        Data = bytesReceived
+                    });
                 }
+            }
 #if RELEASE
             }
             catch (Exception ex)
             {
                 // Invoke OnError
-                _server.InvokeOnError(new OnErrorEventArgs
+              this.   _server.InvokeOnError(new OnErrorEventArgs
                 {
                     Client = this.Client,
                     ConnectionId = this.ConnectionId,
@@ -89,55 +90,80 @@ namespace TcpSharp
                 });
 
                 // Disconnect
-                _server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
+               this.  _server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
             }
 #endif
         }
 
-        public int SendBytes(byte[] bytes)
+        public long SendBytes(byte[] bytes)
         {
             if (!this.Connected) return 0;
 
             this.BytesSent += bytes.Length;
-            _server.BytesSent += bytes.Length;
+            this._server.AddSentBytes(bytes.Length);
 
             return this.Client.Client.Send(bytes);
         }
 
-        public int SendString(string data)
+        public long SendString(string data)
         {
             if (!this.Connected) return 0;
 
             var bytes = Encoding.UTF8.GetBytes(data);
             this.BytesSent += bytes.Length;
-            _server.BytesSent += bytes.Length;
+            this._server.AddSentBytes(bytes.Length);
 
             return this.Client.Client.Send(bytes);
         }
 
-        public int SendString(string data, Encoding encoding)
+        public long SendString(string data, Encoding encoding)
         {
             if (!this.Connected) return 0;
 
             var bytes = encoding.GetBytes(data);
             this.BytesSent += bytes.Length;
-            _server.BytesSent += bytes.Length;
+            this._server.AddSentBytes(bytes.Length);
 
             return this.Client.Client.Send(bytes);
         }
 
-        public void SendFile(string fileName)
+        public long SendFile(string filePath)
         {
-            if (!this.Connected) return;
+            // Check Point
+            if (!this.Connected) return 0;
+            if (!File.Exists(filePath)) return 0;
 
-            this.Client.Client.SendFile(fileName);
+            // FileInfo
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo == null) return 0;
+
+            // Action
+            this.Client.Client.SendFile(filePath);
+            this.BytesSent += fileInfo.Length;
+            this._server.AddSentBytes(fileInfo.Length);
+
+            // Return
+            return fileInfo.Length;
         }
 
-        public void SendFile(string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+        public long SendFile(string filePath, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
         {
-            if (!this.Connected) return;
+            // Check Point
+            if (!this.Connected) return 0;
+            if (!File.Exists(filePath)) return 0;
 
-            this.Client.Client.SendFile(fileName, preBuffer, postBuffer, flags);
+            // FileInfo
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo == null) return 0;
+
+            // Action
+            this.Client.Client.SendFile(filePath, preBuffer, postBuffer, flags);
+            this.BytesSent += fileInfo.Length;
+            this._server.AddSentBytes(fileInfo.Length);
+
+            // Return
+            return fileInfo.Length;
         }
+
     }
 }

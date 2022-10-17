@@ -10,7 +10,7 @@ namespace TcpSharp.ClientExample
         static TcpSharpSocketClient client;
         static void Main(string[] args)
         {
-            client = new TcpSharpSocketClient("127.0.0.1", 1024);
+            client = new TcpSharpSocketClient("localhost", 1024);
             client.OnConnected += Client_OnConnected;
             client.OnDisconnected += Client_OnDisconnected;
             client.OnDataReceived += Client_OnDataReceived;

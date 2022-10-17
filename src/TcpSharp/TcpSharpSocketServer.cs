@@ -18,21 +18,6 @@ namespace TcpSharp
             get { return _isListening; }
             private set { _isListening = value; }
         }
-        public IPAddress IPAddress
-        {
-            get { return IPAddress.Parse(this.Host); }
-        }
-        public string Host
-        {
-            get { return _host; }
-            set
-            {
-                if (IsListening)
-                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
-
-                _host = value;
-            }
-        }
         public int Port
         {
             get { return _port; }
@@ -41,8 +26,6 @@ namespace TcpSharp
                 if (IsListening)
                     throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
-
-
                 _port = value;
             }
         }
@@ -50,6 +33,56 @@ namespace TcpSharp
         {
             get { return _nodelay; }
             private set { _nodelay = value; }
+        }
+        public bool KeepAlive
+        {
+            get { return _keepAlive; }
+            set
+            {
+                if (IsListening)
+                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+
+                _keepAlive = value;
+            }
+        }
+
+        public int KeepAliveTime
+        {
+            get { return _keepAliveTime; }
+            set
+            {
+                if (IsListening)
+                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+
+                _keepAliveTime = value;
+            }
+        }
+
+        /// <summary>
+        /// Keep-alive interval in seconds
+        /// </summary>
+        public int KeepAliveInterval
+        {
+            get { return _keepAliveInterval; }
+            set
+            {
+                if (IsListening)
+                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+
+                _keepAliveInterval = value;
+            }
+        }
+
+        public int KeepAliveRetryCount
+        {
+            get { return _keepAliveRetryCount; }
+            set
+            {
+                if (IsListening)
+                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+
+                _keepAliveRetryCount = value;
+            }
         }
         public int ReceiveBufferSize
         {
@@ -84,27 +117,29 @@ namespace TcpSharp
         #endregion
 
         #region Private Properties
-        private bool _isListening { get; set; }
-        private IPAddress _ipAddress { get; set; }
-        private string _host { get; set; }
-        private int _port { get; set; }
-        private bool _nodelay { get; set; } = true;
-        private int _receiveBufferSize { get; set; } = 8192;
-        private int _receiveTimeout { get; set; } = 0;
-        private int _sendBufferSize { get; set; } = 8192;
-        private int _sendTimeout { get; set; } = 0;
-        private long _bytesReceived { get; set; }
-        private long _bytesSent { get; set; }
+        private bool _isListening;
+        private int _port;
+        private bool _nodelay = true;
+        private bool _keepAlive = false;
+        private int _keepAliveTime = 60;
+        private int _keepAliveInterval = 60;
+        private int _keepAliveRetryCount = 5;
+        private int _receiveBufferSize = 8192;
+        private int _receiveTimeout = 0;
+        private int _sendBufferSize = 8192;
+        private int _sendTimeout = 0;
+        private long _bytesReceived = 0;
+        private long _bytesSent = 0;
         #endregion
 
         #region Public Events
-        public event EventHandler<OnStartedEventArgs> OnStarted;
-        public event EventHandler<OnStoppedEventArgs> OnStopped;
-        public event EventHandler<OnErrorEventArgs> OnError;
-        public event EventHandler<OnConnectionRequestEventArgs> OnConnectionRequest;
-        public event EventHandler<OnConnectedEventArgs> OnConnected;
-        public event EventHandler<OnDisconnectedEventArgs> OnDisconnected;
-        public event EventHandler<OnDataReceivedEventArgs> OnDataReceived;
+        public event EventHandler<OnStartedEventArgs> OnStarted = delegate { };
+        public event EventHandler<OnStoppedEventArgs> OnStopped = delegate { };
+        public event EventHandler<OnErrorEventArgs> OnError = delegate { };
+        public event EventHandler<OnConnectionRequestEventArgs> OnConnectionRequest = delegate { };
+        public event EventHandler<OnConnectedEventArgs> OnConnected = delegate { };
+        public event EventHandler<OnDisconnectedEventArgs> OnDisconnected = delegate { };
+        public event EventHandler<OnDataReceivedEventArgs> OnDataReceived = delegate { };
         #endregion
 
         #region Readonly Properties
@@ -120,13 +155,12 @@ namespace TcpSharp
         #endregion
 
         #region Constructors
-        public TcpSharpSocketServer() : this("0.0.0.0", 1024)
+        public TcpSharpSocketServer() : this(1024)
         {
         }
 
-        public TcpSharpSocketServer(string host, int port)
+        public TcpSharpSocketServer(int port)
         {
-            this.Host = host;
             this.Port = port;
 
             this._idGenerator = new SnowflakeGenerator();
@@ -156,6 +190,7 @@ namespace TcpSharp
 
             // Stop Listener
             this._listener.Stop();
+            this.IsListening = false;
 
             // Stop Thread
             this._cancellationTokenSource.Cancel();
@@ -176,7 +211,7 @@ namespace TcpSharp
             return _clients[connectionId];
         }
 
-        public int SendBytes(long connectionId, byte[] bytes)
+        public long SendBytes(long connectionId, byte[] bytes)
         {
             // Get Client
             var client = GetClient(connectionId);
@@ -186,7 +221,7 @@ namespace TcpSharp
             return client.SendBytes(bytes);
         }
 
-        public int SendString(long connectionId, string data)
+        public long SendString(long connectionId, string data)
         {
             // Get Client
             var client = GetClient(connectionId);
@@ -196,7 +231,7 @@ namespace TcpSharp
             return client.SendString(data);
         }
 
-        public int SendString(long connectionId, string data, Encoding encoding)
+        public long SendString(long connectionId, string data, Encoding encoding)
         {
             // Get Client
             var client = GetClient(connectionId);
@@ -206,24 +241,24 @@ namespace TcpSharp
             return client.SendString(data, encoding);
         }
 
-        public void SendFile(long connectionId, string fileName)
+        public long SendFile(long connectionId, string fileName)
         {
             // Get Client
             var client = GetClient(connectionId);
-            if (client == null) return;
+            if (client == null) return 0;
 
             // Send Bytes
-            client.SendFile(fileName);
+            return client.SendFile(fileName);
         }
 
-        public void SendFile(long connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+        public long SendFile(long connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
         {
             // Get Client
             var client = GetClient(connectionId);
-            if (client == null) return;
+            if (client == null) return 0;
 
             // Send Bytes
-            client.SendFile(fileName, preBuffer, postBuffer, flags);
+            return client.SendFile(fileName, preBuffer, postBuffer, flags);
         }
 
         public void Disconnect(long connectionId, DisconnectReason reason = DisconnectReason.None)
@@ -255,6 +290,18 @@ namespace TcpSharp
         }
         #endregion
 
+        #region Internal Methods
+        internal void AddReceivedBytes(long bytesCount)
+        {
+            Interlocked.Add(ref _bytesReceived, bytesCount);
+        }
+
+        internal void AddSentBytes(long bytesCount)
+        {
+            Interlocked.Add(ref _bytesSent, bytesCount);
+        }
+        #endregion
+
         #region Private Methods
         private void Disconnect(TcpClient client)
         {
@@ -269,7 +316,45 @@ namespace TcpSharp
 
         private void ListeningThreadAction()
         {
-            this._listener = new TcpListener(IPAddress.Parse(this.Host), this.Port);
+            this._listener = new TcpListener(IPAddress.Any, this.Port);
+
+            // NoDelay
+            this._listener.Server.NoDelay = this.NoDelay;
+
+            /* Keep Alive */
+            if (this.KeepAlive && this.KeepAliveInterval > 0)
+            {
+#if NETCOREAPP || NET5_0 || NET6_0
+                _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                _listener.Server.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, this.KeepAliveTime);
+                _listener.Server.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, this.KeepAliveInterval);
+                _listener.Server.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
+#elif NETFRAMEWORK
+                // Get the size of the uint to use to back the byte array
+                int size = Marshal.SizeOf((uint)0);
+
+                // Create the byte array
+                byte[] keepAlive = new byte[size * 3];
+
+                // Pack the byte array:
+                // Turn keepalive on
+                Buffer.BlockCopy(BitConverter.GetBytes((uint)1), 0, keepAlive, 0, size);
+
+                // How long does it take to start the first probe (in milliseconds)
+                Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveTime*1000)), 0, keepAlive, size, size);
+
+                // Detection time interval (in milliseconds)
+                Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveInterval*1000)), 0, keepAlive, size * 2, size);
+
+                // Set the keep-alive settings on the underlying Socket
+                _listener.Server.IOControl(IOControlCode.KeepAliveValues, keepAlive, null);
+#elif NETSTANDARD
+                // Set the keep-alive settings on the underlying Socket
+                _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+#endif
+            }
+
+            // Start
             this._listener.Start();
             this.IsListening = true;
 
@@ -302,7 +387,7 @@ namespace TcpSharp
                 // Reject
                 if (!cr_args.Accept)
                 {
-                    Disconnect(tcpClient);
+                    this.Disconnect(tcpClient);
                     continue;
                 }
 

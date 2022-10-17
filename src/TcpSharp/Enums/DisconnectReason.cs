@@ -4,6 +4,7 @@
     {
         None = 0,
         Exception = 1,
-        ServerStopped = 2,
+        ServerAborted = 2,
+        ServerStopped = 3,
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,17 +14,13 @@ namespace TcpSharp
     public class TcpSharpSocketClient
     {
         #region Public Properties
-        public IPAddress IPAddress
-        {
-            get { return IPAddress.Parse(this.Host); }
-        }
         public string Host
         {
             get { return _host; }
             set
             {
                 if (Connected)
-                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
 
                 _host = value;
             }
@@ -33,9 +31,7 @@ namespace TcpSharp
             set
             {
                 if (Connected)
-                    throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
-
-
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
 
                 _port = value;
             }
@@ -47,6 +43,56 @@ namespace TcpSharp
             {
                 _nodelay = value;
                 if (_socket != null) _socket.NoDelay = value;
+            }
+        }
+        public bool KeepAlive
+        {
+            get { return _keepAlive; }
+            set
+            {
+                if (Connected)
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
+
+                _keepAlive = value;
+            }
+        }
+
+        public int KeepAliveTime
+        {
+            get { return _keepAliveTime; }
+            set
+            {
+                if (Connected)
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
+
+                _keepAliveTime = value;
+            }
+        }
+
+        /// <summary>
+        /// Keep-alive interval in seconds
+        /// </summary>
+        public int KeepAliveInterval
+        {
+            get { return _keepAliveInterval; }
+            set
+            {
+                if (Connected)
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
+
+                _keepAliveInterval = value;
+            }
+        }
+
+        public int KeepAliveRetryCount
+        {
+            get { return _keepAliveRetryCount; }
+            set
+            {
+                if (Connected)
+                    throw (new Exception("Socket Client is already connected. You cant change this property while connected."));
+
+                _keepAliveRetryCount = value;
             }
         }
         public int ReceiveBufferSize
@@ -116,25 +162,29 @@ namespace TcpSharp
         #endregion
 
         #region Private Properties
-        private string _host { get; set; }
-        private int _port { get; set; }
-        private bool _nodelay { get; set; } = true;
-        private int _receiveBufferSize { get; set; } = 8192;
-        private int _receiveTimeout { get; set; } = 0;
-        private int _sendBufferSize { get; set; } = 8192;
-        private int _sendTimeout { get; set; } = 0;
-        private long _bytesReceived { get; set; }
-        private long _bytesSent { get; set; }
-        private bool _reconnect { get; set; } = true;
-        private int _reconnectDelay { get; set; } = 5;
-        private bool _acceptData { get; set; } = true;
+        private string _host;
+        private int _port;
+        private bool _nodelay = true;
+        private bool _keepAlive = false;
+        private int _keepAliveTime = 60;
+        private int _keepAliveInterval = 60;
+        private int _keepAliveRetryCount = 5;
+        private int _receiveBufferSize = 8192;
+        private int _receiveTimeout = 0;
+        private int _sendBufferSize = 8192;
+        private int _sendTimeout = 0;
+        private long _bytesReceived;
+        private long _bytesSent;
+        private bool _reconnect = false;
+        private int _reconnectDelay = 5;
+        private bool _acceptData = true;
         #endregion
 
         #region Public Events
-        public event EventHandler<OnErrorEventArgs> OnError;
-        public event EventHandler<OnConnectedEventArgs> OnConnected;
-        public event EventHandler<OnDisconnectedEventArgs> OnDisconnected;
-        public event EventHandler<OnDataReceivedEventArgs> OnDataReceived;
+        public event EventHandler<OnErrorEventArgs> OnError = delegate { };
+        public event EventHandler<OnConnectedEventArgs> OnConnected = delegate { };
+        public event EventHandler<OnDisconnectedEventArgs> OnDisconnected = delegate { };
+        public event EventHandler<OnDataReceivedEventArgs> OnDataReceived = delegate { };
         #endregion
 
         #region Private Fields
@@ -164,47 +214,79 @@ namespace TcpSharp
         #region Public Methods
         public void Connect()
         {
-#if RELEASE
             try
             {
+                // Buffers
+                this._recvBuffer = new byte[ReceiveBufferSize];
+                this._sendBuffer = new byte[SendBufferSize];
+
+                // Get Host IP Address that is used to establish a connection  
+                // In this case, we get one IP address of localhost that is IP : 127.0.0.1  
+                // If a host has multiple addresses, you will get a list of addresses  
+                var serverIPHost = Dns.GetHostEntry(Host);
+                if (serverIPHost.AddressList.Length == 0) throw new Exception("Unable to solve host address");
+                var serverIPAddress = serverIPHost.AddressList[0];
+                if (serverIPAddress.ToString() == "::1") serverIPAddress = new IPAddress(16777343); // 127.0.0.1
+                var serverIPEndPoint = new IPEndPoint(serverIPAddress, Port);
+
+                // Create a TCP/IP  socket.    
+                this._socket = new Socket(serverIPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                // Set Properties
+                this._socket.NoDelay = this.NoDelay;
+                this._socket.ReceiveBufferSize = this.ReceiveBufferSize;
+                this._socket.ReceiveTimeout = this.ReceiveTimeout;
+                this._socket.SendBufferSize = this.SendBufferSize;
+                this._socket.SendTimeout = this.SendTimeout;
+
+                /* Keep Alive */
+                if (this.KeepAlive && this.KeepAliveInterval > 0)
+                {
+#if NETCOREAPP || NET5_0 || NET6_0
+                    _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                    _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, this.KeepAliveTime);
+                    _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, this.KeepAliveInterval);
+                    _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
+#elif NETFRAMEWORK
+                    // Get the size of the uint to use to back the byte array
+                    int size = Marshal.SizeOf((uint)0);
+
+                    // Create the byte array
+                    byte[] keepAlive = new byte[size * 3];
+
+                    // Pack the byte array:
+                    // Turn keepalive on
+                    Buffer.BlockCopy(BitConverter.GetBytes((uint)1), 0, keepAlive, 0, size);
+
+                    // How long does it take to start the first probe (in milliseconds)
+                    Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveTime*1000)), 0, keepAlive, size, size);
+
+                    // Detection time interval (in milliseconds)
+                    Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveInterval*1000)), 0, keepAlive, size * 2, size);
+
+                    // Set the keep-alive settings on the underlying Socket
+                    _socket.IOControl(IOControlCode.KeepAliveValues, keepAlive, null);
+#elif NETSTANDARD
+                    // Set the keep-alive settings on the underlying Socket
+                    _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 #endif
-            // Buffers
-            this._recvBuffer = new byte[ReceiveBufferSize];
-            this._sendBuffer = new byte[SendBufferSize];
+                }
 
-            // Get Host IP Address that is used to establish a connection  
-            // In this case, we get one IP address of localhost that is IP : 127.0.0.1  
-            // If a host has multiple addresses, you will get a list of addresses  
-            var serverIPHost = Dns.GetHostEntry(Host);
-            var serverIPAddress = serverIPHost.AddressList[0];
-            var serverIPEndPoint = new IPEndPoint(serverIPAddress, Port);
+                // Connect to Remote EndPoint
+                _socket.Connect(serverIPEndPoint);
 
-            // Create a TCP/IP  socket.    
-            this._socket = new Socket(serverIPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                // Start Receiver Thread
+                this._cancellationTokenSource = new CancellationTokenSource();
+                this._cancellationToken = this._cancellationTokenSource.Token;
+                this._thread = new Thread(ReceiverThreadAction);
+                this._thread.Start();
 
-            // Set Properties
-            this._socket.NoDelay = this.NoDelay;
-            this._socket.ReceiveBufferSize = this.ReceiveBufferSize;
-            this._socket.ReceiveTimeout = this.ReceiveTimeout;
-            this._socket.SendBufferSize = this.SendBufferSize;
-            this._socket.SendTimeout = this.SendTimeout;
-
-            // Connect to Remote EndPoint
-            _socket.Connect(serverIPEndPoint);
-
-            // Start Receiver Thread
-            this._cancellationTokenSource = new CancellationTokenSource();
-            this._cancellationToken = this._cancellationTokenSource.Token;
-            this._thread = new Thread(ReceiverThreadAction);
-            this._thread.Start();
-
-            // Invoke OnConnected
-            this.InvokeOnConnected(new OnConnectedEventArgs
-            {
-                ServerHost = this.Host,
-                ServerPort = this.Port,
-            });
-#if RELEASE
+                // Invoke OnConnected
+                this.InvokeOnConnected(new OnConnectedEventArgs
+                {
+                    ServerHost = this.Host,
+                    ServerPort = this.Port,
+                });
             }
             catch (Exception ex)
             {
@@ -214,7 +296,6 @@ namespace TcpSharp
                     Exception = ex
                 });
             }
-#endif
         }
 
         public void Disconnect()
@@ -222,58 +303,86 @@ namespace TcpSharp
             this.Disconnect(DisconnectReason.None);
         }
 
-        public int SendBytes(byte[] bytes)
+        public long SendBytes(byte[] bytes)
         {
             // Check Point
             if (!this.Connected) return 0;
 
             // Action
-            this.BytesSent += bytes.Length;
-            return this._socket.Send(bytes);
+            var sent = this._socket.Send(bytes);
+            this.BytesSent += sent;
+
+            // Return
+            return sent;
         }
 
-        public int SendString(string data)
+        public long SendString(string data)
         {
             // Check Point
             if (!this.Connected) return 0;
 
             // Action
             var bytes = Encoding.UTF8.GetBytes(data);
-            this.BytesSent += bytes.Length;
-            return this._socket.Send(bytes);
+            var sent = this._socket.Send(bytes);
+            this.BytesSent += sent;
+
+            // Return
+            return sent;
         }
 
-        public int SendString(string data, Encoding encoding)
+        public long SendString(string data, Encoding encoding)
         {
             // Check Point
             if (!this.Connected) return 0;
 
             // Action
             var bytes = encoding.GetBytes(data);
-            this.BytesSent += bytes.Length;
-            return this._socket.Send(bytes);
+            var sent = this._socket.Send(bytes);
+            this.BytesSent += sent;
+
+            // Return
+            return sent;
         }
 
-        public void SendFile(string fileName)
+        public long SendFile(string filePath)
         {
             // Check Point
-            if (!this.Connected) return;
+            if (!this.Connected) return 0;
+            if (!File.Exists(filePath)) return 0;
+
+            // FileInfo
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo == null) return 0;
 
             // Action
-            this._socket.SendFile(fileName);
+            this._socket.SendFile(filePath);
+            this.BytesSent += fileInfo.Length;
+
+            // Return
+            return fileInfo.Length;
         }
 
-        public void SendFile(string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+        public long SendFile(string filePath, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
         {
             // Check Point
-            if (!this.Connected) return;
+            if (!this.Connected) return 0;
+            if (!File.Exists(filePath)) return 0;
+
+            // FileInfo
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo == null) return 0;
 
             // Action
-            this._socket.SendFile(fileName, preBuffer, postBuffer, flags);
+            this._socket.SendFile(filePath, preBuffer, postBuffer, flags);
+            this.BytesSent += fileInfo.Length;
+
+            // Return
+            return fileInfo.Length;
         }
         #endregion
 
         #region Private Methods
+        //Burada bir tane de bağllantının açık olup olmadığını kontrol eden ayrı bir thread daha çalışmalı
         private void ReceiverThreadAction()
         {
             try
@@ -297,6 +406,13 @@ namespace TcpSharp
                             });
                         }
                     }
+                }
+            }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.ConnectionAborted)
+                {
+                    Disconnect(DisconnectReason.ServerAborted);
                 }
             }
             catch (Exception ex)

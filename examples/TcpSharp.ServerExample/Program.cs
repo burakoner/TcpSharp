@@ -46,7 +46,8 @@ namespace TcpSharp.ServerExample
         }
         private static void Server_OnConnectionRequest(object sender, OnConnectionRequestEventArgs e)
         {
-            Console.WriteLine("Server_OnConnectionRequest");
+            Console.WriteLine($"Server_OnConnectionRequest. IPEndPoint: {e.IPEndPoint} Address {e.IPAddress}:{e.Port}");
+            e.Accept = false;
         }
 
         private static void Server_OnConnected(object sender, OnConnectedEventArgs e)
