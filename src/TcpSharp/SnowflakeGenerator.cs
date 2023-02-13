@@ -21,7 +21,7 @@ namespace TcpSharp
         /// </summary>
         private static readonly DateTime Jan1st1970 = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private const long Epoch = 1351606710465L;
+        private const long Epoch = 1668124800000L;
 
         /// <summary>
         /// Number of bits allocated for a worker id in the generated identifier. 5 bits indicates values from 0 to 31
