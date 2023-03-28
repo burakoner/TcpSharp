@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Text;
-using TcpSharp.Events.Server;
+using TcpSharp.Events;
 
 namespace TcpSharp.ServerExample
 {
@@ -35,34 +35,34 @@ namespace TcpSharp.ServerExample
             Console.WriteLine($"Received Bytes: {bytesReceived}");
         }
 
-        private static void Server_OnStarted(object sender, OnStartedEventArgs e)
+        private static void Server_OnStarted(object sender, OnServerStartedEventArgs e)
         {
             Console.WriteLine("Server_OnStarted");
         }
 
-        private static void Server_OnStopped(object sender, OnStoppedEventArgs e)
+        private static void Server_OnStopped(object sender, OnServerStoppedEventArgs e)
         {
             Console.WriteLine("Server_OnStopped");
         }
-        private static void Server_OnConnectionRequest(object sender, OnConnectionRequestEventArgs e)
+        private static void Server_OnConnectionRequest(object sender, OnServerConnectionRequestEventArgs e)
         {
             Console.WriteLine($"Server_OnConnectionRequest. IPEndPoint: {e.IPEndPoint} Address {e.IPAddress}:{e.Port}");
-            e.Accept = false;
+            //e.Accept = false;
         }
 
-        private static void Server_OnConnected(object sender, OnConnectedEventArgs e)
+        private static void Server_OnConnected(object sender, OnServerConnectedEventArgs e)
         {
             Console.WriteLine($"Server_OnConnected. ConnectionId: {e.ConnectionId} Address {e.IPAddress}:{e.Port}");
         }
 
-        private static void Server_OnDisconnected(object sender, OnDisconnectedEventArgs e)
+        private static void Server_OnDisconnected(object sender, OnServerDisconnectedEventArgs e)
         {
             Console.WriteLine("Server_OnDisconnected");
         }
 
 
         static long bytesReceived = 0;
-        private static void Server_OnDataReceived(object sender, OnDataReceivedEventArgs e)
+        private static void Server_OnDataReceived(object sender, OnServerDataReceivedEventArgs e)
         {
             // bytesReceived += e.Data.Length;
             // server.SendBytes(e.ConnectionId, Encoding.UTF8.GetBytes("Sana da selam!"));
@@ -76,7 +76,7 @@ namespace TcpSharp.ServerExample
             }
         }
 
-        private static void Server_OnError(object sender, OnErrorEventArgs e)
+        private static void Server_OnError(object sender, OnServerErrorEventArgs e)
         {
             Console.WriteLine("Server_OnError");
         }

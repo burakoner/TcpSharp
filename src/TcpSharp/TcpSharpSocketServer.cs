@@ -148,8 +148,7 @@ public class TcpSharpSocketServer
     private readonly ConcurrentDictionary<string, ConnectedClient> _clients;
     #endregion
 
-    #region Listener Thread
-    private Thread _thread;
+    #region Listener Task
     private CancellationTokenSource _cancellationTokenSource;
     private CancellationToken _cancellationToken;
     #endregion
@@ -175,8 +174,7 @@ public class TcpSharpSocketServer
 
         this._cancellationTokenSource = new CancellationTokenSource();
         this._cancellationToken = this._cancellationTokenSource.Token;
-        this._thread = new Thread(ListeningThreadAction);
-        this._thread.Start();
+        Task.Factory.StartNew(ListeningTask, TaskCreationOptions.LongRunning);
     }
 
     public void StopListening()
@@ -270,7 +268,7 @@ public class TcpSharpSocketServer
         var client = _clients[connectionId];
 
         // Check Point
-        if (!client.Connected) return;
+        // if (!client.Connected) return;
 
         // Stop Receiving
         client.StopReceiving();
@@ -314,7 +312,7 @@ public class TcpSharpSocketServer
         catch { }
     }
 
-    private void ListeningThreadAction()
+    private void ListeningTask()
     {
         this._listener = new TcpListener(IPAddress.Any, this.Port);
 
@@ -357,6 +355,8 @@ public class TcpSharpSocketServer
 
         // Start
         this._listener.Start();
+
+        // Listening
         this.Listening = true;
 
         // Invoke OnStarted Event
@@ -414,6 +414,9 @@ public class TcpSharpSocketServer
             };
             InvokeOnConnected(c_args);
         }
+
+        // Listening
+        this.Listening = false;
     }
     #endregion
 

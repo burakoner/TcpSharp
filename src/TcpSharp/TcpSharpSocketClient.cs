@@ -137,6 +137,7 @@ public class TcpSharpSocketClient
         get { return _reconnect; }
         set { _reconnect = value; }
     }
+    public bool Reconnecting { get; private set; }
     public int ReconnectDelayInSeconds
     {
         get { return _reconnectDelay; }
@@ -172,6 +173,7 @@ public class TcpSharpSocketClient
     #region Public Events
     public event EventHandler<OnClientErrorEventArgs> OnError = delegate { };
     public event EventHandler<OnClientConnectedEventArgs> OnConnected = delegate { };
+    public event EventHandler<OnClientReconnectedEventArgs> OnReconnected = delegate { };
     public event EventHandler<OnClientDisconnectedEventArgs> OnDisconnected = delegate { };
     public event EventHandler<OnClientDataReceivedEventArgs> OnDataReceived = delegate { };
     #endregion
@@ -179,6 +181,7 @@ public class TcpSharpSocketClient
     #region Event Invokers
     internal void InvokeOnError(OnClientErrorEventArgs args) => this.OnError?.Invoke(this, args);
     internal void InvokeOnConnected(OnClientConnectedEventArgs args) => this.OnConnected?.Invoke(this, args);
+    internal void InvokeOnReconnected(OnClientReconnectedEventArgs args) => this.OnReconnected?.Invoke(this, args);
     internal void InvokeOnDisconnected(OnClientDisconnectedEventArgs args) => this.OnDisconnected?.Invoke(this, args);
     internal void InvokeOnDataReceived(OnClientDataReceivedEventArgs args) => this.OnDataReceived?.Invoke(this, args);
     #endregion
@@ -189,8 +192,7 @@ public class TcpSharpSocketClient
     private byte[] _sendBuffer;
     #endregion
 
-    #region Receiver Thread
-    private Thread _thread;
+    #region Receiver Task
     private CancellationTokenSource _cancellationTokenSource;
     private CancellationToken _cancellationToken;
     #endregion
@@ -242,25 +244,25 @@ public class TcpSharpSocketClient
             _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, this.KeepAliveInterval);
             _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
 #elif NETFRAMEWORK
-                // Get the size of the uint to use to back the byte array
-                // int size = Marshal.SizeOf((uint)0);
-                int size = sizeof(uint);
+            // Get the size of the uint to use to back the byte array
+            // int size = Marshal.SizeOf((uint)0);
+            int size = sizeof(uint);
 
-                // Create the byte array
-                byte[] keepAlive = new byte[size * 3];
+            // Create the byte array
+            byte[] keepAlive = new byte[size * 3];
 
-                // Pack the byte array:
-                // Turn keepalive on
-                Buffer.BlockCopy(BitConverter.GetBytes((uint)1), 0, keepAlive, 0, size);
+            // Pack the byte array:
+            // Turn keepalive on
+            Buffer.BlockCopy(BitConverter.GetBytes((uint)1), 0, keepAlive, 0, size);
 
-                // How long does it take to start the first probe (in milliseconds)
-                Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveTime*1000)), 0, keepAlive, size, size);
+            // How long does it take to start the first probe (in milliseconds)
+            Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveTime * 1000)), 0, keepAlive, size, size);
 
-                // Detection time interval (in milliseconds)
-                Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveInterval*1000)), 0, keepAlive, size * 2, size);
+            // Detection time interval (in milliseconds)
+            Buffer.BlockCopy(BitConverter.GetBytes((uint)(KeepAliveInterval * 1000)), 0, keepAlive, size * 2, size);
 
-                // Set the keep-alive settings on the underlying Socket
-                _socket.IOControl(IOControlCode.KeepAliveValues, keepAlive, null);
+            // Set the keep-alive settings on the underlying Socket
+            _socket.IOControl(IOControlCode.KeepAliveValues, keepAlive, null);
 #elif NETSTANDARD
                 // Set the keep-alive settings on the underlying Socket
                 _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
@@ -271,10 +273,10 @@ public class TcpSharpSocketClient
         _socket.Connect(serverIPEndPoint);
 
         // Start Receiver Thread
+        if (this._cancellationTokenSource != null) this._cancellationTokenSource.Cancel();
         this._cancellationTokenSource = new CancellationTokenSource();
         this._cancellationToken = this._cancellationTokenSource.Token;
-        this._thread = new Thread(ReceiverThreadAction);
-        this._thread.Start();
+        Task.Factory.StartNew(ReceiverTask, TaskCreationOptions.LongRunning);
 
         // Invoke OnConnected
         this.InvokeOnConnected(new OnClientConnectedEventArgs
@@ -368,8 +370,7 @@ public class TcpSharpSocketClient
     #endregion
 
     #region Private Methods
-    //Burada bir tane de bağllantının açık olup olmadığını kontrol eden ayrı bir thread daha çalışmalı
-    private void ReceiverThreadAction()
+    private void ReceiverTask()
     {
         try
         {
@@ -400,6 +401,10 @@ public class TcpSharpSocketClient
             {
                 Disconnect(DisconnectReason.ServerAborted);
             }
+            else
+            {
+                Disconnect(DisconnectReason.None);
+            }
         }
         catch (Exception ex)
         {
@@ -416,8 +421,13 @@ public class TcpSharpSocketClient
 
     private void Disconnect(DisconnectReason reason)
     {
-        // Bu noktada _socket zaten dispose edilmiş olabiliyor.
-        // Bu nedenle try-catch bloğuna alıyorum
+        try
+        {
+            // Stop Receiver Task
+            this._cancellationTokenSource.Cancel();
+        }
+        catch { }
+
         try
         {
             // Release the socket.
@@ -426,27 +436,38 @@ public class TcpSharpSocketClient
         }
         catch { }
 
-        // Dispose
         try
         {
+            // Dispose
             _socket.Dispose();
         }
         catch { }
-
-        // Stop Receiver Thread
-        this._cancellationTokenSource.Cancel();
 
         // Invoke OnDisconnected
         this.InvokeOnDisconnected(new OnClientDisconnectedEventArgs());
 
         // Reconnect
-        if (this.Reconnect)
+        if (this.Reconnect && !Reconnecting)
         {
+            Reconnecting = true;
             while (!this.Connected)
             {
-                Task.Delay(this.ReconnectDelayInSeconds * 1000);
-                this.Connect();
+                try
+                {
+                    Task.Delay(this.ReconnectDelayInSeconds * 1000);
+                    this.Connect();
+                    break;
+                }
+                catch { }
             }
+            Reconnecting = false;
+
+            // Invoke OnReconnected
+            this.InvokeOnReconnected(new OnClientReconnectedEventArgs
+            {
+                ServerHost = this.Host,
+                ServerPort = this.Port,
+            });
         }
     }
     #endregion

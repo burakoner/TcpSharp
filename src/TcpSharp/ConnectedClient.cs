@@ -14,7 +14,6 @@ public class ConnectedClient
     private readonly TcpSharpSocketServer _server;
 
     /* Private Fields */
-    private readonly Thread _thread;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CancellationToken _cancellationToken;
 
@@ -24,15 +23,13 @@ public class ConnectedClient
         this.ConnectionId = connectionId;
 
         this._server = server;
-
-        this._thread = new Thread(async () => await ConnectionHandler());
         this._cancellationTokenSource = new CancellationTokenSource();
         this._cancellationToken = this._cancellationTokenSource.Token;
     }
 
     internal void StartReceiving()
     {
-        this._thread.Start();
+        Task.Factory.StartNew(ReceivingTask, TaskCreationOptions.LongRunning);
     }
 
     internal void StopReceiving()
@@ -40,40 +37,42 @@ public class ConnectedClient
         this._cancellationTokenSource.Cancel();
     }
 
-    private async Task ConnectionHandler()
+    private async Task ReceivingTask()
     {
         var stream = this.Client.GetStream();
         var buffer = new byte[this.Client.ReceiveBufferSize];
-#if RELEASE
         try
         {
-#endif
-        var bytesCount = 0;
-        while ((bytesCount = await stream.ReadAsync(buffer, 0, buffer.Length, this._cancellationToken)) != 0)
-        {
-            // Increase BytesReceived
-            BytesReceived += bytesCount;
-            this._server.AddReceivedBytes(bytesCount);
-
-            // Invoke OnDataReceived
-            if (this.AcceptData)
+            var bytesCount = 0;
+            while (!this._cancellationToken.IsCancellationRequested && (bytesCount = await stream.ReadAsync(buffer, 0, buffer.Length, this._cancellationToken)) != 0)
             {
-                var bytesReceived = new byte[bytesCount];
-                Array.Copy(buffer, bytesReceived, bytesCount);
-                this._server.InvokeOnDataReceived(new OnServerDataReceivedEventArgs
+                // Increase BytesReceived
+                BytesReceived += bytesCount;
+                this._server.AddReceivedBytes(bytesCount);
+
+                // Invoke OnDataReceived
+                if (this.AcceptData)
                 {
-                    Client = this.Client,
-                    ConnectionId = this.ConnectionId,
-                    Data = bytesReceived
-                });
+                    var bytesReceived = new byte[bytesCount];
+                    Array.Copy(buffer, bytesReceived, bytesCount);
+                    this._server.InvokeOnDataReceived(new OnServerDataReceivedEventArgs
+                    {
+                        Client = this.Client,
+                        ConnectionId = this.ConnectionId,
+                        Data = bytesReceived
+                    });
+                }
             }
         }
-#if RELEASE
+        catch (IOException ex)
+        {
+            // Disconnect
+            this._server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
         }
         catch (Exception ex)
         {
             // Invoke OnError
-          this._server.InvokeOnError(new OnServerErrorEventArgs
+            this._server.InvokeOnError(new OnServerErrorEventArgs
             {
                 Client = this.Client,
                 ConnectionId = this.ConnectionId,
@@ -81,9 +80,8 @@ public class ConnectedClient
             });
 
             // Disconnect
-           this._server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
+            this._server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
         }
-#endif
     }
 
     public long SendBytes(byte[] bytes)
