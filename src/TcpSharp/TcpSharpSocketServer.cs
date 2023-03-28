@@ -1,11 +1,9 @@
-﻿using System.Runtime.InteropServices;
-
-namespace TcpSharp;
+﻿namespace TcpSharp;
 
 public class TcpSharpSocketServer
 {
     #region Public Properties
-    public bool IsListening
+    public bool Listening
     {
         get { return _isListening; }
         private set { _isListening = value; }
@@ -15,7 +13,7 @@ public class TcpSharpSocketServer
         get { return _port; }
         set
         {
-            if (IsListening)
+            if (Listening)
                 throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
             _port = value;
@@ -31,7 +29,7 @@ public class TcpSharpSocketServer
         get { return _keepAlive; }
         set
         {
-            if (IsListening)
+            if (Listening)
                 throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
             _keepAlive = value;
@@ -43,7 +41,7 @@ public class TcpSharpSocketServer
         get { return _keepAliveTime; }
         set
         {
-            if (IsListening)
+            if (Listening)
                 throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
             _keepAliveTime = value;
@@ -58,7 +56,7 @@ public class TcpSharpSocketServer
         get { return _keepAliveInterval; }
         set
         {
-            if (IsListening)
+            if (Listening)
                 throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
             _keepAliveInterval = value;
@@ -70,7 +68,7 @@ public class TcpSharpSocketServer
         get { return _keepAliveRetryCount; }
         set
         {
-            if (IsListening)
+            if (Listening)
                 throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
 
             _keepAliveRetryCount = value;
@@ -147,7 +145,7 @@ public class TcpSharpSocketServer
     #region Readonly Properties
     private TcpListener _listener;
     private readonly SnowflakeGenerator _idGenerator;
-    private readonly ConcurrentDictionary<long, ConnectedClient> _clients;
+    private readonly ConcurrentDictionary<string, ConnectedClient> _clients;
     #endregion
 
     #region Listener Thread
@@ -166,7 +164,7 @@ public class TcpSharpSocketServer
         this.Port = port;
 
         this._idGenerator = new SnowflakeGenerator();
-        this._clients = new ConcurrentDictionary<long, ConnectedClient>();
+        this._clients = new ConcurrentDictionary<string, ConnectedClient>();
     }
     #endregion
 
@@ -192,7 +190,7 @@ public class TcpSharpSocketServer
 
         // Stop Listener
         this._listener.Stop();
-        this.IsListening = false;
+        this.Listening = false;
 
         // Stop Thread
         this._cancellationTokenSource.Cancel();
@@ -204,7 +202,7 @@ public class TcpSharpSocketServer
         });
     }
 
-    public ConnectedClient GetClient(long connectionId)
+    public ConnectedClient GetClient(string connectionId)
     {
         // Check Point
         if (!_clients.ContainsKey(connectionId)) return null;
@@ -213,7 +211,7 @@ public class TcpSharpSocketServer
         return _clients[connectionId];
     }
 
-    public long SendBytes(long connectionId, byte[] bytes)
+    public long SendBytes(string connectionId, byte[] bytes)
     {
         // Get Client
         var client = GetClient(connectionId);
@@ -223,7 +221,7 @@ public class TcpSharpSocketServer
         return client.SendBytes(bytes);
     }
 
-    public long SendString(long connectionId, string data)
+    public long SendString(string connectionId, string data)
     {
         // Get Client
         var client = GetClient(connectionId);
@@ -233,7 +231,7 @@ public class TcpSharpSocketServer
         return client.SendString(data);
     }
 
-    public long SendString(long connectionId, string data, Encoding encoding)
+    public long SendString(string connectionId, string data, Encoding encoding)
     {
         // Get Client
         var client = GetClient(connectionId);
@@ -243,7 +241,7 @@ public class TcpSharpSocketServer
         return client.SendString(data, encoding);
     }
 
-    public long SendFile(long connectionId, string fileName)
+    public long SendFile(string connectionId, string fileName)
     {
         // Get Client
         var client = GetClient(connectionId);
@@ -253,7 +251,7 @@ public class TcpSharpSocketServer
         return client.SendFile(fileName);
     }
 
-    public long SendFile(long connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+    public long SendFile(string connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
     {
         // Get Client
         var client = GetClient(connectionId);
@@ -263,7 +261,7 @@ public class TcpSharpSocketServer
         return client.SendFile(fileName, preBuffer, postBuffer, flags);
     }
 
-    public void Disconnect(long connectionId, DisconnectReason reason = DisconnectReason.None)
+    public void Disconnect(string connectionId, DisconnectReason reason = DisconnectReason.None)
     {
         // Check Point
         if (!_clients.ContainsKey(connectionId)) return;
@@ -333,7 +331,8 @@ public class TcpSharpSocketServer
             _listener.Server.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
 #elif NETFRAMEWORK
             // Get the size of the uint to use to back the byte array
-            int size = Marshal.SizeOf((uint)0);
+            // int size = Marshal.SizeOf((uint)0);
+            int size = sizeof(uint);
 
             // Create the byte array
             byte[] keepAlive = new byte[size * 3];
@@ -358,7 +357,7 @@ public class TcpSharpSocketServer
 
         // Start
         this._listener.Start();
-        this.IsListening = true;
+        this.Listening = true;
 
         // Invoke OnStarted Event
         InvokeOnStarted(new OnServerStartedEventArgs
@@ -399,7 +398,7 @@ public class TcpSharpSocketServer
             tcpClient.ReceiveTimeout = this.ReceiveTimeout;
             tcpClient.SendBufferSize = this.SendBufferSize;
             tcpClient.SendTimeout = this.SendTimeout;
-            var nanoClient = new ConnectedClient(this, tcpClient, this._idGenerator.GenerateId());
+            var nanoClient = new ConnectedClient(this, tcpClient, this._idGenerator.GenerateId().ToString());
             this._clients[nanoClient.ConnectionId] = nanoClient;
 
             // Start Receiving

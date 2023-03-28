@@ -4,7 +4,7 @@ public class ConnectedClient
 {
     /* Public Properties */
     public TcpClient Client { get; internal set; }
-    public long ConnectionId { get; internal set; }
+    public string ConnectionId { get; internal set; }
     public bool Connected { get { return this.Client != null && this.Client.Connected; } }
     public bool AcceptData { get; internal set; } = true;
     public long BytesReceived { get; private set; }
@@ -18,7 +18,7 @@ public class ConnectedClient
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly CancellationToken _cancellationToken;
 
-    internal ConnectedClient(TcpSharpSocketServer server, TcpClient client, long connectionId)
+    internal ConnectedClient(TcpSharpSocketServer server, TcpClient client, string connectionId)
     {
         this.Client = client;
         this.ConnectionId = connectionId;
@@ -81,7 +81,7 @@ public class ConnectedClient
             });
 
             // Disconnect
-           this.  _server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
+           this._server.Disconnect(this.ConnectionId, DisconnectReason.Exception);
         }
 #endif
     }

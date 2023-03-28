@@ -13,10 +13,10 @@
 	<PropertyGroup>
 		<PackageId>TcpSharp</PackageId>
 		<Authors>Burak Öner</Authors>
-		<Version>1.1.2</Version>
-		<FileVersion>1.1.2</FileVersion>
-		<PackageVersion>1.1.2</PackageVersion>
-		<AssemblyVersion>1.1.2</AssemblyVersion>
+		<Version>1.1.5</Version>
+		<FileVersion>1.1.5</FileVersion>
+		<PackageVersion>1.1.5</PackageVersion>
+		<AssemblyVersion>1.1.5</AssemblyVersion>
 		<Description>Faster TCP Server and Client tools using low-level implementations.</Description>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageTags>TcpSharp;Net;TCP;Socket;Client;Server</PackageTags>
@@ -24,7 +24,7 @@
 		<NeutralLanguage>en</NeutralLanguage>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PackageReleaseNotes>
-			Version 1.1.2 - 13 Mar 2023
+			Version 1.1.5 - 28 Mar 2023
 		</PackageReleaseNotes>
 		<PackageIcon>TcpSharp.png</PackageIcon>
 		<PackageIconUrl />

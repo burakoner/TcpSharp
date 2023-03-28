@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace TcpSharp;
+﻿namespace TcpSharp;
 
 public class TcpSharpSocketClient
 {
@@ -212,42 +210,41 @@ public class TcpSharpSocketClient
     #region Public Methods
     public void Connect()
     {
-        try
+        // Buffers
+        this._recvBuffer = new byte[ReceiveBufferSize];
+        this._sendBuffer = new byte[SendBufferSize];
+
+        // Get Host IP Address that is used to establish a connection  
+        // In this case, we get one IP address of localhost that is IP : 127.0.0.1  
+        // If a host has multiple addresses, you will get a list of addresses  
+        var serverIPHost = Dns.GetHostEntry(Host);
+        if (serverIPHost.AddressList.Length == 0) throw new Exception("Unable to solve host address");
+        var serverIPAddress = serverIPHost.AddressList[0];
+        if (serverIPAddress.ToString() == "::1") serverIPAddress = new IPAddress(16777343); // 127.0.0.1
+        var serverIPEndPoint = new IPEndPoint(serverIPAddress, Port);
+
+        // Create a TCP/IP  socket.    
+        this._socket = new Socket(serverIPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        // Set Properties
+        this._socket.NoDelay = this.NoDelay;
+        this._socket.ReceiveBufferSize = this.ReceiveBufferSize;
+        this._socket.ReceiveTimeout = this.ReceiveTimeout;
+        this._socket.SendBufferSize = this.SendBufferSize;
+        this._socket.SendTimeout = this.SendTimeout;
+
+        /* Keep Alive */
+        if (this.KeepAlive && this.KeepAliveInterval > 0)
         {
-            // Buffers
-            this._recvBuffer = new byte[ReceiveBufferSize];
-            this._sendBuffer = new byte[SendBufferSize];
-
-            // Get Host IP Address that is used to establish a connection  
-            // In this case, we get one IP address of localhost that is IP : 127.0.0.1  
-            // If a host has multiple addresses, you will get a list of addresses  
-            var serverIPHost = Dns.GetHostEntry(Host);
-            if (serverIPHost.AddressList.Length == 0) throw new Exception("Unable to solve host address");
-            var serverIPAddress = serverIPHost.AddressList[0];
-            if (serverIPAddress.ToString() == "::1") serverIPAddress = new IPAddress(16777343); // 127.0.0.1
-            var serverIPEndPoint = new IPEndPoint(serverIPAddress, Port);
-
-            // Create a TCP/IP  socket.    
-            this._socket = new Socket(serverIPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-            // Set Properties
-            this._socket.NoDelay = this.NoDelay;
-            this._socket.ReceiveBufferSize = this.ReceiveBufferSize;
-            this._socket.ReceiveTimeout = this.ReceiveTimeout;
-            this._socket.SendBufferSize = this.SendBufferSize;
-            this._socket.SendTimeout = this.SendTimeout;
-
-            /* Keep Alive */
-            if (this.KeepAlive && this.KeepAliveInterval > 0)
-            {
 #if NETCOREAPP3_0_OR_GREATER || NET5_0_OR_GREATER
-                _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, this.KeepAliveTime);
-                _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, this.KeepAliveInterval);
-                _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, this.KeepAliveTime);
+            _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, this.KeepAliveInterval);
+            _socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, this.KeepAliveRetryCount);
 #elif NETFRAMEWORK
                 // Get the size of the uint to use to back the byte array
-                int size = Marshal.SizeOf((uint)0);
+                // int size = Marshal.SizeOf((uint)0);
+                int size = sizeof(uint);
 
                 // Create the byte array
                 byte[] keepAlive = new byte[size * 3];
@@ -268,32 +265,23 @@ public class TcpSharpSocketClient
                 // Set the keep-alive settings on the underlying Socket
                 _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 #endif
-            }
-
-            // Connect to Remote EndPoint
-            _socket.Connect(serverIPEndPoint);
-
-            // Start Receiver Thread
-            this._cancellationTokenSource = new CancellationTokenSource();
-            this._cancellationToken = this._cancellationTokenSource.Token;
-            this._thread = new Thread(ReceiverThreadAction);
-            this._thread.Start();
-
-            // Invoke OnConnected
-            this.InvokeOnConnected(new OnClientConnectedEventArgs
-            {
-                ServerHost = this.Host,
-                ServerPort = this.Port,
-            });
         }
-        catch (Exception ex)
+
+        // Connect to Remote EndPoint
+        _socket.Connect(serverIPEndPoint);
+
+        // Start Receiver Thread
+        this._cancellationTokenSource = new CancellationTokenSource();
+        this._cancellationToken = this._cancellationTokenSource.Token;
+        this._thread = new Thread(ReceiverThreadAction);
+        this._thread.Start();
+
+        // Invoke OnConnected
+        this.InvokeOnConnected(new OnClientConnectedEventArgs
         {
-            // Invoke OnError
-            this.InvokeOnError(new OnClientErrorEventArgs
-            {
-                Exception = ex
-            });
-        }
+            ServerHost = this.Host,
+            ServerPort = this.Port,
+        });
     }
 
     public void Disconnect()
@@ -428,9 +416,22 @@ public class TcpSharpSocketClient
 
     private void Disconnect(DisconnectReason reason)
     {
-        // Release the socket.    
-        _socket.Shutdown(SocketShutdown.Both);
-        _socket.Close();
+        // Bu noktada _socket zaten dispose edilmiş olabiliyor.
+        // Bu nedenle try-catch bloğuna alıyorum
+        try
+        {
+            // Release the socket.
+            _socket.Shutdown(SocketShutdown.Both);
+            _socket.Close();
+        }
+        catch { }
+
+        // Dispose
+        try
+        {
+            _socket.Dispose();
+        }
+        catch { }
 
         // Stop Receiver Thread
         this._cancellationTokenSource.Cancel();
