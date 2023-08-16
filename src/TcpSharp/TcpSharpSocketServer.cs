@@ -19,6 +19,17 @@ public class TcpSharpSocketServer
             _port = value;
         }
     }
+    public IPAddress IPAddr
+    {
+        get { return _ipaddr; }
+        set
+        {
+            if (Listening)
+                throw (new Exception("Socket Server is already listening. You cant change this property while listening."));
+
+            _ipaddr = value;
+        }
+    }
     public bool NoDelay
     {
         get { return _nodelay; }
@@ -109,6 +120,7 @@ public class TcpSharpSocketServer
     #region Private Properties
     private bool _isListening;
     private int _port;
+    private IPAddress _ipaddr = IPAddress.Any;
     private bool _nodelay = true;
     private bool _keepAlive = false;
     private int _keepAliveTime = 900;
@@ -162,6 +174,14 @@ public class TcpSharpSocketServer
     {
         this.Port = port;
 
+        this._idGenerator = new SnowflakeGenerator();
+        this._clients = new ConcurrentDictionary<string, ConnectedClient>();
+    }
+
+    public TcpSharpSocketServer(int port, IPAddress IP)
+    {
+        this.Port = port;
+        this.IPAddr = IP;
         this._idGenerator = new SnowflakeGenerator();
         this._clients = new ConcurrentDictionary<string, ConnectedClient>();
     }
@@ -314,7 +334,7 @@ public class TcpSharpSocketServer
 
     private void ListeningTask()
     {
-        this._listener = new TcpListener(IPAddress.Any, this.Port);
+        this._listener = new TcpListener(_ipaddr, this.Port);
 
         // NoDelay
         this._listener.Server.NoDelay = this.NoDelay;
