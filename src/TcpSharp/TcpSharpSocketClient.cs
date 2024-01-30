@@ -356,56 +356,56 @@ public class TcpSharpSocketClient
         return SendString(data, encoding);
     }
 
-    public long SendFile(string path)
+    public long SendFile(string fileName)
     {
         // Check Point
         if (!this.Connected) return 0;
-        if (!File.Exists(path)) return 0;
+        if (!File.Exists(fileName)) return 0;
 
         // FileInfo
-        var fileInfo = new FileInfo(path);
+        var fileInfo = new FileInfo(fileName);
         if (fileInfo == null) return 0;
 
         // Action
-        this._socket.SendFile(path);
+        this._socket.SendFile(fileName);
         this.BytesSent += fileInfo.Length;
 
         // Return
         return fileInfo.Length;
     }
 
-    public async Task<long> SendFileAsync(string path, CancellationToken token)
+    public async Task<long> SendFileAsync(string fileName, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         await Task.CompletedTask;
 
-        return SendFile(path);
+        return SendFile(fileName);
     }
 
-    public long SendFile(string path, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+    public long SendFile(string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
     {
         // Check Point
         if (!this.Connected) return 0;
-        if (!File.Exists(path)) return 0;
+        if (!File.Exists(fileName)) return 0;
 
         // FileInfo
-        var fileInfo = new FileInfo(path);
+        var fileInfo = new FileInfo(fileName);
         if (fileInfo == null) return 0;
 
         // Action
-        this._socket.SendFile(path, preBuffer, postBuffer, flags);
+        this._socket.SendFile(fileName, preBuffer, postBuffer, flags);
         this.BytesSent += fileInfo.Length;
 
         // Return
         return fileInfo.Length;
     }
 
-    public async Task<long> SendFileAsync(string path, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags, CancellationToken token)
+    public async Task<long> SendFileAsync(string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         await Task.CompletedTask;
 
-        return SendFile(path, preBuffer, postBuffer, flags);
+        return SendFile(fileName, preBuffer, postBuffer, flags);
     }
     #endregion
 

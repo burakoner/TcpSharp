@@ -219,6 +219,14 @@ public class TcpSharpSocketServer
         return client.SendBytes(bytes);
     }
 
+    public async Task<long> SendBytesAsync(string connectionId, byte[] bytes, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendBytes(connectionId, bytes);
+    }
+
     public long SendString(string connectionId, string data)
     {
         // Get Client
@@ -227,6 +235,14 @@ public class TcpSharpSocketServer
 
         // Send Bytes
         return client.SendString(data);
+    }
+
+    public async Task<long> SendStringAsync(string connectionId, string data, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendString(connectionId, data);
     }
 
     public long SendString(string connectionId, string data, Encoding encoding)
@@ -239,6 +255,14 @@ public class TcpSharpSocketServer
         return client.SendString(data, encoding);
     }
 
+    public async Task<long> SendStringAsync(string connectionId, string data, Encoding encoding, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendString(connectionId, data, encoding);
+    }
+
     public long SendFile(string connectionId, string fileName)
     {
         // Get Client
@@ -249,6 +273,14 @@ public class TcpSharpSocketServer
         return client.SendFile(fileName);
     }
 
+    public async Task<long> SendFileAsync(string connectionId, string fileName, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendFile(connectionId, fileName);
+    }
+
     public long SendFile(string connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
     {
         // Get Client
@@ -257,6 +289,14 @@ public class TcpSharpSocketServer
 
         // Send Bytes
         return client.SendFile(fileName, preBuffer, postBuffer, flags);
+    }
+
+    public async Task<long> SendFileAsync(string connectionId, string fileName, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendFile(connectionId, fileName, preBuffer, postBuffer, flags);
     }
 
     public void Disconnect(string connectionId, DisconnectReason reason = DisconnectReason.None)
