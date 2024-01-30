@@ -1,22 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>
-			net5.0;net6.0;net7.0;
-			net46;net461;net462;net47;net471;net472;net48;net481;
-			netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;netcoreapp3.0;netcoreapp3.1;
-			netstandard2.0;netstandard2.1;
-		</TargetFrameworks>
+		<TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 
 	<PropertyGroup>
 		<PackageId>TcpSharp</PackageId>
 		<Authors>Burak Öner</Authors>
-		<Version>1.2.0</Version>
-		<FileVersion>1.2.0</FileVersion>
-		<PackageVersion>1.2.0</PackageVersion>
-		<AssemblyVersion>1.2.0</AssemblyVersion>
+		<Version>1.2.5</Version>
+		<FileVersion>1.2.5</FileVersion>
+		<PackageVersion>1.2.5</PackageVersion>
+		<AssemblyVersion>1.2.5</AssemblyVersion>
 		<Description>Faster TCP Server and Client tools using low-level implementations. Successfully tested up to 10GBps.</Description>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageTags>TcpSharp;Net;TCP;Socket;Client;Server</PackageTags>
@@ -24,7 +19,7 @@
 		<NeutralLanguage>en</NeutralLanguage>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PackageReleaseNotes>
-			Version 1.2.0 - 29 Mar 2023
+			Version 1.2.5 - 30 Jan 2024
 		</PackageReleaseNotes>
 		<PackageIcon>TcpSharp.png</PackageIcon>
 		<PackageIconUrl />

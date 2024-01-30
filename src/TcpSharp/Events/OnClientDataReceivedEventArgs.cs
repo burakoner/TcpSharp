@@ -1,4 +1,4 @@
-﻿namespace TcpSharp.Events;
+﻿namespace TcpSharp;
 
 public class OnClientDataReceivedEventArgs : EventArgs
 {

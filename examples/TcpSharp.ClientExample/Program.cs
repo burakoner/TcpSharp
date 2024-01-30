@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Text;
-using TcpSharp.Events;
 
 namespace TcpSharp.ClientExample
 {

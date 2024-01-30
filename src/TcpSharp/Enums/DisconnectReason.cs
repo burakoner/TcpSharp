@@ -1,6 +1,6 @@
-﻿namespace TcpSharp.Enums;
+﻿namespace TcpSharp;
 
-public enum DisconnectReason
+public enum DisconnectReason : byte
 {
     None = 0,
     Exception = 1,

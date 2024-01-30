@@ -264,8 +264,8 @@ public class TcpSharpSocketClient
             // Set the keep-alive settings on the underlying Socket
             _socket.IOControl(IOControlCode.KeepAliveValues, keepAlive, null);
 #elif NETSTANDARD
-                // Set the keep-alive settings on the underlying Socket
-                _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            // Set the keep-alive settings on the underlying Socket
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 #endif
         }
 
@@ -304,6 +304,14 @@ public class TcpSharpSocketClient
         return sent;
     }
 
+    public async Task<long> SendBytesAsync(byte[] bytes, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendBytes(bytes);
+    }
+
     public long SendString(string data)
     {
         // Check Point
@@ -316,6 +324,14 @@ public class TcpSharpSocketClient
 
         // Return
         return sent;
+    }
+
+    public async Task<long> SendStringAsync(string data, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendString(data);
     }
 
     public long SendString(string data, Encoding encoding)
@@ -332,40 +348,64 @@ public class TcpSharpSocketClient
         return sent;
     }
 
-    public long SendFile(string filePath)
+    public async Task<long> SendStringAsync(string data, Encoding encoding, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendString(data, encoding);
+    }
+
+    public long SendFile(string path)
     {
         // Check Point
         if (!this.Connected) return 0;
-        if (!File.Exists(filePath)) return 0;
+        if (!File.Exists(path)) return 0;
 
         // FileInfo
-        var fileInfo = new FileInfo(filePath);
+        var fileInfo = new FileInfo(path);
         if (fileInfo == null) return 0;
 
         // Action
-        this._socket.SendFile(filePath);
+        this._socket.SendFile(path);
         this.BytesSent += fileInfo.Length;
 
         // Return
         return fileInfo.Length;
     }
 
-    public long SendFile(string filePath, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
+    public async Task<long> SendFileAsync(string path, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendFile(path);
+    }
+
+    public long SendFile(string path, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags)
     {
         // Check Point
         if (!this.Connected) return 0;
-        if (!File.Exists(filePath)) return 0;
+        if (!File.Exists(path)) return 0;
 
         // FileInfo
-        var fileInfo = new FileInfo(filePath);
+        var fileInfo = new FileInfo(path);
         if (fileInfo == null) return 0;
 
         // Action
-        this._socket.SendFile(filePath, preBuffer, postBuffer, flags);
+        this._socket.SendFile(path, preBuffer, postBuffer, flags);
         this.BytesSent += fileInfo.Length;
 
         // Return
         return fileInfo.Length;
+    }
+
+    public async Task<long> SendFileAsync(string path, byte[] preBuffer, byte[] postBuffer, TransmitFileOptions flags, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        await Task.CompletedTask;
+
+        return SendFile(path, preBuffer, postBuffer, flags);
     }
     #endregion
 
